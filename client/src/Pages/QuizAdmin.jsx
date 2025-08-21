@@ -6,12 +6,12 @@ import { classGet, classPost, downloadFile } from '../services/Endpoint';
 import toast from 'react-hot-toast';
 import { FaTrash } from 'react-icons/fa';
 
-// const socket = io('http://localhost:8000', {
-//   transports: ['websocket', 'polling'],
-//   reconnection: true,
-//   reconnectionAttempts: 5,
-//   reconnectionDelay: 1000,
-// });
+const socket = io('http://localhost:8000', {
+transports: ['websocket', 'polling'],
+reconnection: true,
+reconnectionAttempts: 5,
+reconnectionDelay: 1000,
+});
 
 const styles = `
   /* Page Background */
@@ -622,35 +622,143 @@ const QuizAdmin = () => {
     return quizForm.questions.every(q => q.text.trim() && q.options.length >= 2 && q.options.some(opt => opt.isCorrect) && q.marks > 0 && q.options.every(opt => opt.text.trim()));
   };
 
-  const handleCreateQuiz = async () => {
-    if (!validateForm()) {
-      toast.error('Please fill all required fields correctly.');
-      return;
-    }
-    try {
-      const formData = new FormData();
-      formData.append('title', quizForm.title);
-      formData.append('classId', id);
-      const questionsData = quizForm.questions.map(q => ({
-        text: q.text,
-        marks: q.marks,
-        options: q.options,
-        image: q.image ? `questionImage${quizForm.questions.indexOf(q)}` : null,
-      }));
-      formData.append('questions', JSON.stringify(questionsData));
-      quizForm.questions.forEach((q, i) => {
-        if (q.image) formData.append('questionImage', q.image, `questionImage${i}`);
-      });
+ const handleCreateQuiz = async () => {
+  if (!validateForm()) {
+    toast.error('Please fill all required fields correctly.');
+    return;
+  }
 
-      const response = await classPost('/quizes/quiz/create', formData);
-      setQuizzes([...quizzes, response.data.quiz]);
-      setShowForm(false);
-      setQuizForm({ title: '', questions: [{ image: null, text: '', options: [{ text: '', isCorrect: false }, { text: '', isCorrect: false }, { text: '', isCorrect: false }, { text: '', isCorrect: false }], marks: 1 }] });
-      toast.success('Quiz created successfully');
-    } catch (error) {
-      toast.error('Failed to create quiz.');
-    }
-  };
+  try {
+    const formData = new FormData();
+
+    // Basic quiz data
+    formData.append('title', quizForm.title);
+    formData.append('classId', id);
+
+    // Prepare questions data with image field names matching FormData keys
+    const questionsData = quizForm.questions.map((q, i) => ({
+      text: q.text,
+      marks: q.marks,
+      options: q.options,
+      image: q.image ? `questionImage${i}` : null, // reference by consistent key
+    }));
+
+    formData.append('questions', JSON.stringify(questionsData));
+
+    // Append images with the exact same keys as in questionsData
+    quizForm.questions.forEach((q, i) => {
+      if (q.image) {
+        formData.append(`questionImage${i}`, q.image); // consistent naming
+      }
+    });
+
+    // Send request
+    const response = await classPost('/quizes/quiz/create', formData);
+
+    // Update quiz list
+    setQuizzes(prev => [...prev, response.data.quiz]);
+
+    // Reset form
+    setShowForm(false);
+    setQuizForm({
+      title: '',
+      questions: [
+        {
+          image: null,
+          text: '',
+          options: [
+            { text: '', isCorrect: false },
+            { text: '', isCorrect: false },
+            { text: '', isCorrect: false },
+            { text: '', isCorrect: false }
+          ],
+          marks: 1
+        }
+      ]
+    });
+
+    toast.success('Quiz created successfully');
+  } catch (error) {
+    console.error(error);
+    toast.error('Failed to create quiz.');
+  }
+};
+
+
+
+
+const handleEditQuiz = async (quizId) => {
+  if (!validateForm()) {
+    toast.error('Please fill all required fields correctly.');
+    return;
+  }
+
+  try {
+    const formData = new FormData();
+    formData.append('title', quizForm.title);
+    formData.append('classId', id);
+
+    const questionsData = quizForm.questions.map((q, i) => ({
+      text: q.text,
+      marks: q.marks,
+      options: q.options,
+      image: q.image ? `questionImage${i}` : null
+    }));
+
+    formData.append('questions', JSON.stringify(questionsData));
+
+    quizForm.questions.forEach((q, i) => {
+      if (q.image && typeof q.image !== 'string') { 
+        // Only append if it's a new File, not an existing URL
+        formData.append(`questionImage${i}`, q.image);
+      }
+    });
+
+    const response = await classPost(`/quizes/quiz/update/${quizId}`, formData);
+
+    // Update quiz list in state
+    setQuizzes(prev => prev.map(q => q._id === quizId ? response.data.quiz : q));
+
+    setShowForm(false);
+    toast.success('Quiz updated successfully');
+  } catch (error) {
+    console.error(error);
+    toast.error('Failed to update quiz.');
+  }
+};
+
+const handleOpenEditForm = (quiz) => {
+  setQuizForm({
+    title: quiz.title,
+    questions: quiz.questions.map(q => ({
+      text: q.text,
+      marks: q.marks,
+      options: q.options,
+      image: q.image || null
+    }))
+  });
+  setEditingQuizId(quiz._id);
+  setShowForm(true);
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   const handleStartQuiz = async (quizId) => {
     try {
@@ -855,6 +963,9 @@ const QuizAdmin = () => {
               </button>
               <button style={{ padding: '10px 20px', background: '#e53e3e', color: '#fff', border: 'none', borderRadius: '5px', cursor: 'pointer' }} onClick={() => handleDeleteQuiz(quiz._id)}>
                 Delete
+              </button>
+              <button style={{ padding: '10px 20px', background: '#e53e3e', color: '#fff', border: 'none', borderRadius: '5px', cursor: 'pointer' }} onClick={() => handleEditQuiz(quiz._id)}>
+                Edit
               </button>
               <button style={{ padding: '10px 20px', background: '#007bff', color: '#fff', border: 'none', borderRadius: '5px', cursor: 'pointer' }} onClick={() => handleDownloadQuiz(quiz._id, quiz.title)}>
                 Download
@@ -1074,6 +1185,17 @@ const QuizAdmin = () => {
                 >
                   Cancel
                 </button>
+               
+                {/* <button onClick={() => {
+  if (editingQuizId) {
+    handleEditQuiz(editingQuizId);
+  } else {
+    handleCreateQuiz();
+  }
+}}>
+  {editingQuizId ? 'Update Quiz' : 'Create Quiz'}
+</button> */}
+
               </div>
             </div>
           </div>
