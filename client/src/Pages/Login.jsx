@@ -87,12 +87,8 @@ const Login = () => {
 
       if (res.data.success) {
         localStorage.setItem("token", res.data.token);
-<<<<<<< HEAD
-        console.log(res.data);
-=======
         localStorage.setItem("email", res.data.user?.email); // ✅ Save email
 
->>>>>>> 57f60ec43c1f48ed3a5b9bb7dccbe31c72d08ce6
         dispatch(SetUser({
           email: res.data.user?.email,
           role: res.data.user?.role
