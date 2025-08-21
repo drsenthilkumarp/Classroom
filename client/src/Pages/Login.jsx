@@ -86,6 +86,7 @@ const Login = () => {
       
       if (res.data.success) {
         localStorage.setItem("token", res.data.token);
+        console.log(res.data);
         dispatch(SetUser({
           email: res.data.user?.email,
           role: res.data.user?.role

@@ -372,22 +372,23 @@ const googleLogin = async (req, res) => {
       });
     }
 
-    const role = determineRole(email);
-
+    // const role = determineRole(email);
+    
     let user = await UserModel.findOne({ email });
-    if (!user) {
-      user = new UserModel({
-        googleId,
-        email,
-        name,
-        role,
-      });
-      await user.save();
-    } else if (user.role !== role) {
-      // Update role if it has changed (e.g., super admin assignment)
-      user.role = role;
-      await user.save();
-    }
+    const role = user?.role;
+    // if (!user) {
+    //   user = new UserModel({
+    //     googleId,
+    //     email,
+    //     name,
+    //     role,
+    //   });
+    //   await user.save();
+    // } else if (user.role !== role) {
+    //   // Update role if it has changed (e.g., super admin assignment)
+    //   user.role = role;
+    //   await user.save();
+    // }
 
     const jwtToken = jwt.sign(
       { id: user._id, email: user.email, role: user.role },
