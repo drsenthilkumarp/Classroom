@@ -1,1205 +1,717 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { useParams } from 'react-router-dom';
-import io from 'socket.io-client';
-import SecondNav from '../Components/SecondNav';
-import { classGet, classPost, downloadFile } from '../services/Endpoint';
-import toast from 'react-hot-toast';
-import { FaTrash } from 'react-icons/fa';
+import React, { useEffect, useState, useRef } from "react";
+import { useParams } from "react-router-dom";
+import SecondNav from "../Components/SecondNav";
+import io from "socket.io-client";
+import { classGet, classPost, downloadFile } from "../services/Endpoint";
+import toast from "react-hot-toast";
+import axios from "axios";
+import { FaPlus, FaPlay, FaDownload, FaTrash, FaChevronLeft, FaChevronRight, FaRegImage } from "react-icons/fa";
+import "../styles/QuizAdmin.css";
 
-const socket = io('http://localhost:8000', {
-transports: ['websocket', 'polling'],
-reconnection: true,
-reconnectionAttempts: 5,
-reconnectionDelay: 1000,
+const socket = io("http://localhost:8000", {
+  transports: ["websocket", "polling"],
+  reconnection: true,
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000,
 });
 
-const styles = `
-  /* Page Background */
-  .page-container {
-    background-color: #d3d8e0;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 20px;
-    position: relative;
-  }
-
-  /* Card Container for all content */
-  .card-container {
-    background-color: #fff;
-    border-radius: 1rem;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    width: 100%;
-    max-width: 700px;
-    padding: 0 2rem 2rem 2rem;
-    margin-top: 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-  }
-
-  /* Style for SecondNav to merge with the top of the card */
-  .second-nav {
-    background-color: #fff;
-    border-top-left-radius: 1rem;
-    border-top-right-radius: 1rem;
-    padding: 0rem 0;
-    margin: 0 -2rem;
-  }
-
-  /* Headings */
-  .class-name {
-    font-size: 2.5rem;
-    font-weight: 800;
-    color: #6b48ff;
-    margin-bottom: 0.2rem;
-    text-align: center;
-  }
-
-  /* Responsive adjustments */
-  @media (max-width: 768px) {
-    .page-container {
-      padding: 10px;
-    }
-    .card-container {
-      padding: 0 1rem 1rem 1rem;
-      margin-top: 0.5rem;
-    }
-    .second-nav {
-      margin: 0 -1rem;
-      padding: 0.75rem 0;
-    }
-    .class-name {
-      font-size: 1.8rem;
-    }
-  }
-
-  /* Backdrop for blur effect */
-  .backdrop {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(5px);
-    z-index: 999;
-  }
-
-  @layer components {
-    .quiz-card {
-      width: 800px;
-      height: 600px;
-      background-color: #fff;
-      border-radius: 20px;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      font-family: sans-serif;
-      z-index: 1000;
-    }
-    .quiz-card__close {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      background: none;
-      border: 2px solid #333;
-      border-radius: 50%;
-      width: 30px;
-      height: 30px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 16px;
-      cursor: pointer;
-      color: #333;
-    }
-    .quiz-card__close:hover {
-      background-color: #e0e0e0;
-    }
-    .quiz-card__title {
-      text-align: center;
-      font-size: 28px;
-      font-weight: bold;
-      color: #333;
-      margin-bottom: 20px;
-    }
-    .quiz-card__content {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex: 1;
-      padding: 0 20px;
-    }
-    .quiz-card__image {
-      width: 48%;
-      height: 200px;
-      border: 1px solid #ccc;
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background-color: #e0e0e0;
-    }
-    .quiz-card__image img {
-      width: 100%;
-      height: 100%;
-      border-radius: 10px;
-      object-fit: cover;
-    }
-    .quiz-card__poll {
-      width: 48%;
-      display: flex;
-      justify-content: center;
-      align-items: flex-end;
-      height: 100%;
-      padding-bottom: 30px;
-    }
-    .quiz-card__poll-item {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      position: relative;
-      width: 20%;
-      margin: 0 20px;
-    }
-    .quiz-card__poll-item--correct {
-      position: absolute;
-      top: -20px;
-      font-size: 16px;
-      color: #28a745;
-    }
-    .quiz-card__poll-votes {
-      font-size: 18px;
-      font-weight: bold;
-      color: #333;
-      margin-bottom: 10px;
-    }
-    .quiz-card__poll-bar {
-      width: 60px;
-      background-color: #4a90e2;
-      border-top-left-radius: 10px;
-      border-top-right-radius: 10px;
-      position: relative;
-      min-height: 20px;
-      transition: height 0.3s ease;
-    }
-    .quiz-card__poll-label {
-      font-size: 14px;
-      font-weight: 500;
-      color: #333;
-      text-align: center;
-      margin-top: 10px;
-      white-space: nowrap;
-    }
-    .quiz-card__footer {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      height: 10%;
-      padding: 0 20px;
-    }
-    .quiz-card__button {
-      padding: 8px 16px;
-      color: #fff;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 14px;
-    }
-    .quiz-card__button--previous {
-      background-color: #007bff;
-    }
-    .quiz-card__button--previous:disabled {
-      background-color: #e0e0e0;
-      cursor: not-allowed;
-    }
-    .quiz-card__button--previous:hover:not(:disabled) {
-      background-color: #0056b3;
-    }
-    .quiz-card__button--next {
-      background-color: #007bff;
-    }
-    .quiz-card__button--next:disabled {
-      background-color: #e0e0e0;
-      cursor: not-allowed;
-    }
-    .quiz-card__button--next:hover:not(:disabled) {
-      background-color: #0056b3;
-    }
-    .quiz-card__button--start {
-      background-color: #28a745;
-    }
-    .quiz-card__button--start:hover {
-      background-color: #218838;
-    }
-    .quiz-card__footer-controls {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .quiz-card__response-label {
-      display: flex;
-      align-items: center;
-      font-size: 14px;
-    }
-    .quiz-card__response-input {
-      margin-left: 5px;
-      width: 20px;
-      height: 20px;
-      cursor: pointer;
-    }
-    .quiz-card__timer-select {
-      padding: 8px;
-      border-radius: 5px;
-      border: 1px solid #ccc;
-      font-size: 14px;
-    }
-    .quiz-card__timer {
-      width: 40px;
-      height: 40px;
-      border: 2px solid #ff5733;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 12px;
-      font-weight: bold;
-      color: #ff5733;
-      transition: transform 0.5s ease;
-    }
-
-    /* Mobile Responsive Styles */
-    @media (max-width: 768px) {
-      .quiz-card {
-        width: 90vw;
-        height: auto;
-        min-height: 50vh; /* Reduced height */
-        padding: 15px;
-        margin: 15px auto;
-      }
-      .quiz-card__close {
-        width: 25px;
-        height: 25px;
-        font-size: 14px;
-      }
-      .quiz-card__title {
-        font-size: 20px;
-        margin-bottom: 15px;
-      }
-      .quiz-card__content {
-        flex-direction: row; /* Image and poll bars in same row */
-        padding: 0 10px;
-        gap: 10px;
-      }
-      .quiz-card__image {
-        width: 40%; /* Reduced width */
-        height: 120px; /* Reduced height */
-      }
-      .quiz-card__poll {
-        width: 55%; /* Adjusted width */
-        padding-bottom: 10px;
-        flex-wrap: wrap;
-        gap: 5px;
-      }
-      .quiz-card__poll-item {
-        width: 45%;
-        margin: 0 5px;
-      }
-      .quiz-card__poll-item--correct {
-        font-size: 14px;
-        top: -15px;
-      }
-      .quiz-card__poll-votes {
-        font-size: 14px;
-        margin-bottom: 5px;
-      }
-      .quiz-card__poll-bar {
-        width: 30px;
-        min-height: 15px;
-      }
-      .quiz-card__poll-label {
-        font-size: 12px;
-        margin-top: 5px;
-      }
-      .quiz-card__footer {
-        flex-direction: column;
-        gap: 8px;
-        padding: 0 10px;
-        height: auto;
-      }
-      .quiz-card__button {
-        padding: 6px 12px;
-        font-size: 12px;
-      }
-      .quiz-card__footer-controls {
-        flex-direction: column;
-        gap: 5px;
-        width: 100%;
-      }
-      .quiz-card__response-label {
-        font-size: 12px;
-      }
-      .quiz-card__response-input {
-        width: 16px;
-        height: 16px;
-      }
-      .quiz-card__button--start {
-        padding: 6px 12px;
-        font-size: 12px;
-        width: 100%;
-      }
-      .quiz-card__timer-select {
-        padding: 6px;
-        font-size: 12px;
-        width: 100%;
-      }
-      .quiz-card__timer {
-        width: 30px;
-        height: 30px;
-        font-size: 10px;
-      }
-    }
-  }
-
-  /* Quiz Creation Form Styles */
-  .quiz-form {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: #ffffff;
-    padding: 30px;
-    border-radius: 16px;
-    box-shadow: 0 15px 40px rgba(0,0,0,0.25);
-    z-index: 1001;
-    width: 90%;
-    max-width: 800px;
-    max-height: 85vh;
-    overflow-y: auto;
-    border: 2px solid #333;
-  }
-  .quiz-form__title {
-    font-size: 1.8rem;
-    font-weight: 700;
-    color: #1a3c5e;
-    margin-bottom: 20px;
-  }
-  .quiz-form__input {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    margin-bottom: 15px;
-    font-size: 1rem;
-  }
-  .quiz-form__question {
-    margin-bottom: 25px;
-  }
-  .quiz-form__question-title {
-    font-size: 1.4rem;
-    font-weight: 600;
-    color: #2c3e50;
-    margin-bottom: 15px;
-  }
-  .quiz-form__dropzone {
-    border: 2px dashed #e2e8f0;
-    border-radius: 10px;
-    padding: 25px;
-    text-align: center;
-    margin-bottom: 20px;
-    cursor: pointer;
-  }
-  .quiz-form__dropzone-text {
-    margin: 0;
-    color: #718096;
-    font-size: 1rem;
-  }
-  .quiz-form__dropzone-image {
-    max-width: 100%;
-    max-height: 200px;
-    border-radius: 10px;
-    margin-top: 15px;
-  }
-  .quiz-form__option {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 15px;
-  }
-  .quiz-form__option-input {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    font-size: 1rem;
-  }
-  .quiz-form__delete-icon {
-    color: #e53e3e;
-    cursor: pointer;
-    font-size: 1.3rem;
-  }
-  .quiz-form__button {
-    padding: 10px 20px;
-    background: #3182ce;
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 1rem;
-  }
-  .quiz-form__button--cancel {
-    background: #e2e8f0;
-    color: #2d3436;
-  }
-  .quiz-form__footer {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 20px;
-  }
-  .quiz-form__footer-buttons {
-    display: flex;
-    gap: 10px;
-  }
-
-  /* Mobile Responsive Styles for Quiz Form */
-  @media (max-width: 768px) {
-    .quiz-form {
-      padding: 15px;
-      width: 95%;
-      max-width: none;
-      min-height: 50vh; /* Reduced height */
-    }
-    .quiz-form__title {
-      font-size: 1.5rem;
-      margin-bottom: 15px;
-    }
-    .quiz-form__input {
-      padding: 8px;
-      font-size: 0.9rem;
-    }
-    .quiz-form__question {
-      margin-bottom: 15px;
-    }
-    .quiz-form__question-title {
-      font-size: 1.2rem;
-      margin-bottom: 10px;
-    }
-    .quiz-form__dropzone {
-      padding: 15px;
-      margin-bottom: 15px;
-    }
-    .quiz-form__dropzone-text {
-      font-size: 0.9rem;
-    }
-    .quiz-form__dropzone-image {
-      max-height: 120px; /* Reduced image size */
-      margin-top: 10px;
-    }
-    .quiz-form__option {
-      gap: 8px;
-      margin-bottom: 10px;
-    }
-    .quiz-form__option-input {
-      padding: 8px;
-      font-size: 0.9rem;
-    }
-    .quiz-form__delete-icon {
-      font-size: 1rem;
-    }
-    .quiz-form__button {
-      padding: 8px 15px;
-      font-size: 0.9rem;
-      width: 100%;
-    }
-    .quiz-form__footer {
-      flex-direction: column;
-      gap: 10px;
-    }
-    .quiz-form__footer-buttons {
-      flex-direction: column;
-      gap: 10px;
-      width: 100%;
-    }
-  }
-`;
+const DEFAULT_OPT = () => ({ text: "", isCorrect: false });
+const DEFAULT_Q = () => ({ text: "", image: null, options: [DEFAULT_OPT(), DEFAULT_OPT()], marks: 1 });
 
 const QuizAdmin = () => {
-  const { id } = useParams(); // classId
+  const { id } = useParams();
   const [classData, setClassData] = useState(null);
   const [quizzes, setQuizzes] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [showControlModal, setShowControlModal] = useState(false);
+
+  // Presenter
+  const [showPresenter, setShowPresenter] = useState(false);
   const [controlQuizId, setControlQuizId] = useState(null);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [showResults, setShowResults] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
   const [timerValue, setTimerValue] = useState(0);
   const [results, setResults] = useState([]);
-  const [timerScale, setTimerScale] = useState(1);
-  const [quizForm, setQuizForm] = useState({
-    title: '',
-    questions: [{ image: null, text: '', options: [{ text: '', isCorrect: false }, { text: '', isCorrect: false }, { text: '', isCorrect: false }, { text: '', isCorrect: false }], marks: 1 }],
-  });
-  const hasJoinedRef = useRef(false);
+
+  // Editor
+  const [showForm, setShowForm] = useState(false);
+  const [editQuizId, setEditQuizId] = useState(null);
+  const [editIndex, setEditIndex] = useState(0);
+  const [quizForm, setQuizForm] = useState({ title: "", questions: [DEFAULT_Q()] });
+  const [titleStep, setTitleStep] = useState(false);
+
+  const joined = useRef(false);
 
   useEffect(() => {
-    const initializeAdmin = async () => {
-      if (!id) {
-        console.error('Class ID is undefined');
-        toast.error('Invalid class ID');
-        return;
-      }
-
-      if (hasJoinedRef.current) return;
-
-      socket.emit('joinClass', id);
-      console.log(`Admin joined classroom: ${id}`);
-      hasJoinedRef.current = true;
-    };
-
-    initializeAdmin();
-
-    const fetchData = async () => {
+    const load = async () => {
       try {
-        const classResponse = await classGet(`/class/getclass/${id}`);
-        const quizResponse = await classGet(`/quizes/quiz/${id}`);
-        setClassData(classResponse.data.classData);
-        setQuizzes(quizResponse.data.quizzes || []);
-      } catch (error) {
-        toast.error('Failed to load data.');
+        const c = await classGet(`/class/getclass/${id}`);
+        const q = await classGet(`/quizes/quiz/${id}`);
+        setClassData(c.data.classData);
+        setQuizzes(q.data.quizzes || []);
+      } catch {
+        toast.error("Failed to load");
       } finally {
         setIsLoading(false);
       }
     };
-    fetchData();
+    load();
 
-    socket.on('updateResults', (data) => {
-      console.log('Admin received updateResults:', data);
-      setResults(data.submissions || []);
+    if (!joined.current) {
+      socket.emit("joinClass", id);
+      joined.current = true;
+    }
+
+    // Live submissions stream
+    socket.on("updateResults", d => setResults(d.submissions || []));
+
+    // Keep admin side in sync if another admin toggles or sets question
+    socket.on("updateQuestion", payload => {
+      if (payload.quizId === controlQuizId) {
+        setCurrentIndex(payload.questionIndex);
+        setShowResults(!!payload.showResults);
+      }
     });
 
     return () => {
-      socket.off('updateResults');
-      hasJoinedRef.current = false;
+      socket.off("updateResults");
+      socket.off("updateQuestion");
     };
-  }, [id]);
+  }, [id, controlQuizId]);
 
+  // Timer countdown
   useEffect(() => {
     if (timeLeft > 0) {
-      const timer = setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
-            socket.emit('updateQuestion', {
+      const t = setInterval(() => {
+        setTimeLeft(p => {
+          if (p <= 1) {
+            socket.emit("updateQuestion", {
               quizId: controlQuizId,
-              questionIndex: currentQuestionIndex,
-              question: quizzes.find(q => q._id === controlQuizId)?.questions[currentQuestionIndex],
+              questionIndex: currentIndex,
+              question: quizzes.find(q => q._id === controlQuizId)?.questions[currentIndex],
               showResults,
               timeLimit: 0,
               submitEnabled: false,
-              classId: id,
+              classId: id
             });
             return 0;
           }
-          return prev - 1;
+          return p - 1;
         });
-        setTimerScale(prev => (prev === 1 ? 1.1 : 1));
       }, 1000);
-      return () => clearInterval(timer);
+      return () => clearInterval(t);
     }
-  }, [timeLeft, currentQuestionIndex, showResults, controlQuizId, id]);
+  }, [timeLeft, showResults, currentIndex, controlQuizId, id, quizzes]);
 
-  const validateForm = () => {
-    if (!quizForm.title.trim()) return false;
-    return quizForm.questions.every(q => q.text.trim() && q.options.length >= 2 && q.options.some(opt => opt.isCorrect) && q.marks > 0 && q.options.every(opt => opt.text.trim()));
-  };
-
- const handleCreateQuiz = async () => {
-  if (!validateForm()) {
-    toast.error('Please fill all required fields correctly.');
-    return;
-  }
-
-  try {
-    const formData = new FormData();
-
-    // Basic quiz data
-    formData.append('title', quizForm.title);
-    formData.append('classId', id);
-
-    // Prepare questions data with image field names matching FormData keys
-    const questionsData = quizForm.questions.map((q, i) => ({
-      text: q.text,
-      marks: q.marks,
-      options: q.options,
-      image: q.image ? `questionImage${i}` : null, // reference by consistent key
-    }));
-
-    formData.append('questions', JSON.stringify(questionsData));
-
-    // Append images with the exact same keys as in questionsData
-    quizForm.questions.forEach((q, i) => {
-      if (q.image) {
-        formData.append(`questionImage${i}`, q.image); // consistent naming
-      }
+  // Ensure editIndex is always valid
+  useEffect(() => {
+    setEditIndex(prev => {
+      const max = Math.max(0, quizForm.questions.length - 1);
+      return Math.min(Math.max(0, prev), max);
     });
+  }, [quizForm.questions.length]);
 
-    // Send request
-    const response = await classPost('/quizes/quiz/create', formData);
+  const validate = () =>
+    quizForm.title.trim() &&
+    quizForm.questions.every(
+      q =>
+        q.text.trim() &&
+        q.marks > 0 &&
+        q.options.length >= 2 &&
+        q.options.every(o => o.text.trim()) &&
+        q.options.some(o => o.isCorrect)
+    );
 
-    // Update quiz list
-    setQuizzes(prev => [...prev, response.data.quiz]);
-
-    // Reset form
-    setShowForm(false);
+  const handleEditQuiz = quiz => {
     setQuizForm({
-      title: '',
-      questions: [
-        {
-          image: null,
-          text: '',
-          options: [
-            { text: '', isCorrect: false },
-            { text: '', isCorrect: false },
-            { text: '', isCorrect: false },
-            { text: '', isCorrect: false }
-          ],
-          marks: 1
-        }
-      ]
+      title: quiz.title,
+      questions: quiz.questions.map(q => ({ ...q, image: q.image || null }))
     });
+    setEditQuizId(quiz._id);
+    setEditIndex(0);
+    setShowForm(true);
+  };
 
-    toast.success('Quiz created successfully');
-  } catch (error) {
-    console.error(error);
-    toast.error('Failed to create quiz.');
-  }
-};
+  const handleNewDeck = () => {
+    setQuizForm({ title: "", questions: [DEFAULT_Q()] });
+    setEditQuizId(null);
+    setEditIndex(0);
+    setShowForm(true);
+    setTitleStep(true);
+  };
 
+  const removeQuestionImage = i => {
+    const qs = quizForm.questions.map((q, idx) => (idx === i ? { ...q, image: null } : q));
+    setQuizForm({ ...quizForm, questions: qs });
+  };
 
-
-
-const handleEditQuiz = async (quizId) => {
-  if (!validateForm()) {
-    toast.error('Please fill all required fields correctly.');
-    return;
-  }
-
-  try {
-    const formData = new FormData();
-    formData.append('title', quizForm.title);
-    formData.append('classId', id);
-
-    const questionsData = quizForm.questions.map((q, i) => ({
-      text: q.text,
-      marks: q.marks,
-      options: q.options,
-      image: q.image ? `questionImage${i}` : null
-    }));
-
-    formData.append('questions', JSON.stringify(questionsData));
-
-    quizForm.questions.forEach((q, i) => {
-      if (q.image && typeof q.image !== 'string') { 
-        // Only append if it's a new File, not an existing URL
-        formData.append(`questionImage${i}`, q.image);
-      }
+  const deleteQuestion = i => {
+    if (quizForm.questions.length === 1) return;
+    const qs = quizForm.questions.filter((_, idx) => idx !== i);
+    setQuizForm({ ...quizForm, questions: qs });
+    setEditIndex(prev => {
+      const max = Math.max(0, qs.length - 1);
+      return Math.min(prev, max);
     });
+  };
 
-    const response = await classPost(`/quizes/quiz/update/${quizId}`, formData);
-
-    // Update quiz list in state
-    setQuizzes(prev => prev.map(q => q._id === quizId ? response.data.quiz : q));
-
-    setShowForm(false);
-    toast.success('Quiz updated successfully');
-  } catch (error) {
-    console.error(error);
-    toast.error('Failed to update quiz.');
-  }
-};
-
-const handleOpenEditForm = (quiz) => {
-  setQuizForm({
-    title: quiz.title,
-    questions: quiz.questions.map(q => ({
-      text: q.text,
-      marks: q.marks,
-      options: q.options,
-      image: q.image || null
-    }))
-  });
-  setEditingQuizId(quiz._id);
-  setShowForm(true);
-};
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  const handleStartQuiz = async (quizId) => {
+  const handleSaveQuiz = async () => {
+    if (!validate()) return toast.error("Fill all fields correctly");
     try {
-      await classPost(`/quizes/quiz/start/${quizId}`);
-      const updatedQuizzes = quizzes.map(q => q._id === quizId ? { ...q, started: true, completed: false, submissions: [] } : q);
-      setQuizzes(updatedQuizzes);
-      setControlQuizId(quizId);
-      setShowControlModal(true);
-      setCurrentQuestionIndex(0);
-      setTimeLeft(0);
-      setTimerValue(0);
-      setShowResults(false);
-      setResults([]); // Reset results
+      const fd = new FormData();
+      fd.append("title", quizForm.title);
+      fd.append("classId", id);
+      quizForm.questions.forEach((q, i) => {
+        if (q.image instanceof File) fd.append("questionImage", q.image, `questionImage${i}`);
+      });
+      fd.append(
+        "questions",
+        JSON.stringify(
+          quizForm.questions.map((q, i) => ({
+            text: q.text,
+            marks: q.marks,
+            options: q.options,
+            image: q.image === null ? null : q.image instanceof File ? `questionImage${i}` : q.image
+          }))
+        )
+      );
 
-      const quiz = updatedQuizzes.find(q => q._id === quizId);
-      if (quiz && quiz.questions.length > 0) {
-        socket.emit('quizStarted', { quizId, classId: id });
-        await handleSetQuestion(quizId, 0);
-        console.log('Admin started quiz and set initial question:', { quizId, classId: id });
+      if (editQuizId) {
+        await axios.put(`http://localhost:8000/quizes/quiz/update/${editQuizId}`, fd);
+        toast.success("Quiz updated");
+      } else {
+        await classPost("/quizes/quiz/create", fd);
+        toast.success("Quiz created");
       }
-      toast.success(quiz.submissions?.length > 0 || quiz.completed ? 'Quiz restarted' : 'Quiz started');
-    } catch (error) {
-      toast.error('Failed to start quiz');
-      console.error('Start quiz error:', error);
+
+      setShowForm(false);
+      setEditQuizId(null);
+      setEditIndex(0);
+
+      const qList = await classGet(`/quizes/quiz/${id}`);
+      setQuizzes(qList.data.quizzes);
+    } catch (e) {
+      console.error("Save error:", e?.response || e);
+      toast.error("Save failed");
     }
   };
 
-  const handleEndQuiz = async (quizId) => {
+  // Presenter controls
+  const handleStartQuiz = async quizId => {
+    try {
+      // allow starting anytime; reset flags
+      await classPost(`/quizes/quiz/start/${quizId}`);
+      setQuizzes(prev =>
+        prev.map(q =>
+          q._id === quizId ? { ...q, started: true, completed: false, submissions: [] } : q
+        )
+      );
+      setControlQuizId(quizId);
+      setCurrentIndex(0);
+      setShowResults(false);
+      setTimerValue(0);
+      setTimeLeft(0);
+      setResults([]);
+      setShowPresenter(true);
+
+      await handleSetQuestion(quizId, 0);
+      socket.emit("quizStarted", { quizId, classId: id });
+      toast.success("Started");
+    } catch {
+      toast.error("Start failed");
+    }
+  };
+
+  const handleEndQuiz = async quizId => {
     try {
       await classPost(`/quizes/quiz/end/${quizId}`);
-      setQuizzes(quizzes.map(q => q._id === quizId ? { ...q, completed: true } : q));
-      setShowControlModal(false);
-      socket.emit('quizEnded', { quizId, classId: id });
-      toast.success('Quiz ended');
-    } catch (error) {
-      toast.error('Failed to end quiz');
+      setQuizzes(prev => prev.map(q => (q._id === quizId ? { ...q, completed: true } : q)));
+      setShowPresenter(false);
+      setControlQuizId(null);
+      setCurrentIndex(0);
+      socket.emit("quizEnded", { quizId, classId: id });
+    } catch {
+      toast.error("End failed");
     }
   };
 
-  const handleDeleteQuiz = async (quizId) => {
+  const handleDeleteQuiz = async quizId => {
     try {
       await classPost(`/quizes/quiz/delete/${quizId}`);
-      setQuizzes(quizzes.filter(q => q._id !== quizId));
-      toast.success('Quiz deleted');
-    } catch (error) {
-      toast.error('Failed to delete quiz');
+      setQuizzes(prev => prev.filter(q => q._id !== quizId));
+      toast.success("Deleted");
+    } catch {
+      toast.error("Delete failed");
     }
   };
 
-  const handleDownloadQuiz = async (quizId, title) => {
+  const handleDownload = async (quizId, title) => {
     try {
-      const response = await downloadFile(`/quizes/quiz/download/${quizId}`);
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `${title}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      toast.success('Download started');
-    } catch (error) {
-      toast.error('Failed to download quiz.');
+      const r = await downloadFile(`/quizes/quiz/download/${quizId}`);
+      const url = URL.createObjectURL(new Blob([r.data]));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${title}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("Download failed");
     }
   };
 
   const handleSetQuestion = async (quizId, index) => {
     try {
-      await classPost(`/quizes/quiz/setQuestion/${quizId}`, { questionIndex: index, showResults, timeLimit: timeLeft, submitEnabled: timeLeft > 0 });
-      setCurrentQuestionIndex(index);
-      const quiz = quizzes.find(q => q._id === quizId);
-      socket.emit('updateQuestion', {
+      const question = quizzes.find(q => q._id === quizId)?.questions[index];
+      await classPost(`/quizes/quiz/setQuestion/${quizId}`, {
+        questionIndex: index,
+        showResults,
+        timeLimit: 0, // timer not required for submitting
+        submitEnabled: true
+      });
+      setCurrentIndex(index);
+      socket.emit("updateQuestion", {
         quizId,
         questionIndex: index,
-        question: index >= 0 ? quiz.questions[index] : null,
+        question,
         showResults,
-        timeLimit: timeLeft,
-        submitEnabled: timeLeft > 0,
-        classId: id,
-      });
-      console.log('Admin emitted updateQuestion:', { quizId, questionIndex: index, classId: id });
-    } catch (error) {
-      toast.error('Failed to set question');
-      console.error('Set question error:', error);
-    }
-  };
-
-  const handleNextQuestion = () => {
-    const quiz = quizzes.find(q => q._id === controlQuizId);
-    if (currentQuestionIndex < quiz.questions.length - 1) {
-      const nextIndex = currentQuestionIndex + 1;
-      setTimeLeft(0);
-      setShowResults(false);
-      handleSetQuestion(controlQuizId, nextIndex);
-    }
-  };
-
-  const handlePreviousQuestion = () => {
-    if (currentQuestionIndex > 0) {
-      const prevIndex = currentQuestionIndex - 1;
-      setTimeLeft(0);
-      setShowResults(false);
-      handleSetQuestion(controlQuizId, prevIndex);
-    }
-  };
-
-  const handleStartTimer = () => {
-    if (timerValue > 0) {
-      setTimeLeft(timerValue);
-      socket.emit('updateQuestion', {
-        quizId: controlQuizId,
-        questionIndex: currentQuestionIndex,
-        question: quizzes.find(q => q._id === controlQuizId).questions[currentQuestionIndex],
-        showResults,
-        timeLimit: timerValue,
+        timeLimit: 0,
         submitEnabled: true,
-        classId: id,
+        classId: id
       });
-      handleSetQuestion(controlQuizId, currentQuestionIndex);
+    } catch {
+      toast.error("Set question failed");
     }
   };
 
-  const handleToggleResults = () => {
-    const newShowResults = !showResults;
-    setShowResults(newShowResults);
-    socket.emit('updateQuestion', {
-      quizId: controlQuizId,
-      questionIndex: currentQuestionIndex,
-      question: quizzes.find(q => q._id === controlQuizId).questions[currentQuestionIndex],
-      showResults: newShowResults,
-      timeLimit: timeLeft,
-      submitEnabled: timeLeft > 0,
-      classId: id,
-    });
-    handleSetQuestion(controlQuizId, currentQuestionIndex);
+  const toggleResults = async () => {
+    if (!controlQuizId) return;
+    const newShow = !showResults;
+    setShowResults(newShow);
+
+    // Persist and broadcast so users lock/unlock and see correct answer
+    try {
+      await classPost(`/quizes/quiz/setQuestion/${controlQuizId}`, {
+        questionIndex: currentIndex,
+        showResults: newShow,
+        timeLimit: 0,
+        submitEnabled: true
+      });
+      const question = quizzes.find(q => q._id === controlQuizId)?.questions[currentIndex];
+      socket.emit("updateQuestion", {
+        quizId: controlQuizId,
+        questionIndex: currentIndex,
+        question,
+        showResults: newShow,
+        timeLimit: 0,
+        submitEnabled: true,
+        classId: id
+      });
+    } catch {
+      // still emit to keep UI in sync even if server call fails
+      const question = quizzes.find(q => q._id === controlQuizId)?.questions[currentIndex];
+      socket.emit("updateQuestion", {
+        quizId: controlQuizId,
+        questionIndex: currentIndex,
+        question,
+        showResults: newShow,
+        timeLimit: 0,
+        submitEnabled: true,
+        classId: id
+      });
+    }
   };
 
-  const getPollData = (questionIndex) => {
+  const nextSlide = () => {
     const quiz = quizzes.find(q => q._id === controlQuizId);
-    if (!quiz || questionIndex < 0) return [];
-    const question = quiz.questions[questionIndex];
-    const totalVotes = results.reduce((count, sub) => count + (sub.answers[questionIndex] ? 1 : 0), 0);
-    return question.options.map((opt, idx) => {
-      const votes = results.reduce((count, sub) => count + (sub.answers[questionIndex] === opt.text ? 1 : 0), 0);
-      return { option: opt.text, value: votes, color: idx % 3 === 0 ? '#4a90e2' : idx % 3 === 1 ? '#ff6f61' : '#ff3d00', isCorrect: opt.isCorrect };
-    });
-  };
-
-  const handleAddQuestion = () => {
-    setQuizForm({
-      ...quizForm,
-      questions: [...quizForm.questions, { image: null, text: '', options: [{ text: '', isCorrect: false }, { text: '', isCorrect: false }, { text: '', isCorrect: false }, { text: '', isCorrect: false }], marks: 1 }],
-    });
-  };
-
-  const handleAddOption = (questionIndex) => {
-    const newQuestions = [...quizForm.questions];
-    newQuestions[questionIndex].options.push({ text: '', isCorrect: false });
-    setQuizForm({ ...quizForm, questions: newQuestions });
-  };
-
-  const handleDeleteOption = (questionIndex, optionIndex) => {
-    const newQuestions = [...quizForm.questions];
-    newQuestions[questionIndex].options.splice(optionIndex, 1);
-    setQuizForm({ ...quizForm, questions: newQuestions });
-  };
-
-  const handleImageDrop = (questionIndex, files) => {
-    if (files && files.length > 0) {
-      const newQuestions = [...quizForm.questions];
-      newQuestions[questionIndex].image = files[0];
-      setQuizForm({ ...quizForm, questions: newQuestions });
+    if (!quiz) return;
+    if (currentIndex < quiz.questions.length - 1) {
+      setShowResults(false);
+      handleSetQuestion(controlQuizId, currentIndex + 1);
     }
   };
 
-  if (isLoading) return <div>Loading...</div>;
+  const prevSlide = () => {
+    if (currentIndex > 0) {
+      setShowResults(false);
+      handleSetQuestion(controlQuizId, currentIndex - 1);
+    }
+  };
+
+  const startTimer = () => setTimeLeft(0); // timer not required for submission now
+
+  const pollData = qi => {
+    const quiz = quizzes.find(q => q._id === controlQuizId);
+    if (!quiz || qi < 0) return [];
+    const question = quiz.questions[qi];
+    return question.options.map((opt, idx) => {
+      const votes = results.reduce((sum, s) => (s.answers[qi] === opt.text ? sum + 1 : sum), 0);
+      return { option: opt.text, votes, idx, isCorrect: opt.isCorrect };
+    });
+  };
+
+  if (isLoading) return <div className="spinner"></div>;
 
   return (
     <div className="page-container">
-      <style>{styles}</style>
       <div className="card-container">
-        <div className="second-nav">
-          <SecondNav classId={id} />
+        <SecondNav classId={id} />
+        <h2 className="class-name">{classData?.className || ""}</h2>
+
+        <div className="section-head">
+          <h3 className="section-title">Quizzes</h3>
         </div>
-        <h2 className="class-name">{classData?.ClassName || 'No class data'}</h2>
-        <button
-          style={{ padding: '10px 20px', background: '#3182ce', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '1rem' }}
-          onClick={() => setShowForm(true)}
-        >
-          Create Quiz
-        </button>
-        {quizzes.map(quiz => (
-          <div key={quiz._id} style={{ background: '#f9fafb', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '20px', margin: '15px 0' }}>
-            <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#2c3e50' }}>{quiz.title}</h3>
-            <div style={{ color: '#4a5568' }}>
-              <div>{quiz.questions.length} Questions</div>
-              <div>{quiz.totalMarks || 0} Marks</div>
-              <div>Responses: {quiz.submissions.length}</div>
-            </div>
-            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-              <button style={{ padding: '10px 20px', background: '#28a745', color: '#fff', border: 'none', borderRadius: '5px', cursor: 'pointer' }} onClick={() => handleStartQuiz(quiz._id)}>
-                Start
-              </button>
-              <button style={{ padding: '10px 20px', background: '#e53e3e', color: '#fff', border: 'none', borderRadius: '5px', cursor: 'pointer' }} onClick={() => handleDeleteQuiz(quiz._id)}>
-                Delete
-              </button>
-              <button style={{ padding: '10px 20px', background: '#e53e3e', color: '#fff', border: 'none', borderRadius: '5px', cursor: 'pointer' }} onClick={() => handleEditQuiz(quiz._id)}>
-                Edit
-              </button>
-              <button style={{ padding: '10px 20px', background: '#007bff', color: '#fff', border: 'none', borderRadius: '5px', cursor: 'pointer' }} onClick={() => handleDownloadQuiz(quiz._id, quiz.title)}>
-                Download
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
 
-      {showControlModal && controlQuizId && (
-        <>
-          <div className="backdrop"></div>
-          <div className="quiz-card">
-            <button
-              className="quiz-card__close"
-              onClick={() => handleEndQuiz(controlQuizId)}
-            >
-              ✖
-            </button>
-
-            <div className="quiz-card__title">
-              {quizzes.find(q => q._id === controlQuizId)?.questions[currentQuestionIndex]?.text || 'No Question'}
-            </div>
-
-            <div className="quiz-card__content">
-              <div className="quiz-card__image">
-                {quizzes.find(q => q._id === controlQuizId)?.questions[currentQuestionIndex]?.image ? (
-                  <img
-                    src={`http://localhost:8000/images/${quizzes.find(q => q._id === controlQuizId).questions[currentQuestionIndex].image}`}
-                    alt="Question"
-                    onError={(e) => console.error('Image load error:', e.target.src)}
-                  />
-                ) : (
-                  <img src="https://via.placeholder.com/300x200" alt="Placeholder" />
-                )}
-              </div>
-              <div className="quiz-card__poll">
-                {getPollData(currentQuestionIndex).map(({ option, value, color, isCorrect }) => (
-                  <div key={option} className="quiz-card__poll-item">
-                    {isCorrect && showResults && (
-                      <span className="quiz-card__poll-item--correct">✔</span>
-                    )}
-                    <span className="quiz-card__poll-votes">{showResults ? value : 0}</span>
-                    <div
-                      className="quiz-card__poll-bar"
-                      style={{
-                        height: `${showResults ? value * 20 : 0}px`,
-                        backgroundColor: color,
-                      }}
-                    ></div>
-                    <span className="quiz-card__poll-label">{option}</span>
+        {quizzes.length === 0 ? (
+          <div className="no-quizzes">No quizzes yet. Create one!</div>
+        ) : (
+          <div className="quiz-list">
+            {quizzes.map(q => (
+              <div className="quiz-card" key={q._id}>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 18 }}>{q.title}</div>
+                  <div className="quiz-meta">
+                    <span>{q.questions.length} Questions</span>
+                    <span>{q.totalMarks || 0} Marks</span>
+                    {q.started && !q.completed && <span className="tag tag--live">Live</span>}
+                    {q.completed && <span className="tag tag--ended">Ended</span>}
                   </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="quiz-card__footer">
-              <div>
-                <button
-                  className="quiz-card__button quiz-card__button--previous"
-                  onClick={handlePreviousQuestion}
-                  disabled={currentQuestionIndex <= 0}
-                >
-                  Previous
-                </button>
-              </div>
-              <div className="quiz-card__footer-controls">
-                <label className="quiz-card__response-label">
-                  Response:
-                  <input
-                    type="checkbox"
-                    className="quiz-card__response-input"
-                    checked={showResults}
-                    onChange={handleToggleResults}
-                  />
-                </label>
-                <button
-                  className="quiz-card__button quiz-card__button--start"
-                  onClick={handleStartTimer}
-                >
-                  Start
-                </button>
-                <select
-                  className="quiz-card__timer-select"
-                  value={timerValue}
-                  onChange={(e) => setTimerValue(parseInt(e.target.value))}
-                >
-                  <option value={0}>0 sec</option>
-                  <option value={10}>10 sec</option>
-                  <option value={20}>20 sec</option>
-                  <option value={30}>30 sec</option>
-                </select>
-                <div
-                  className="quiz-card__timer"
-                  style={{ transform: `scale(${timerScale})` }}
-                >
-                  {timeLeft}s
                 </div>
-              </div>
-              <div>
-                <button
-                  className="quiz-card__button quiz-card__button--next"
-                  onClick={handleNextQuestion}
-                  disabled={currentQuestionIndex >= quizzes.find(q => q._id === controlQuizId)?.questions.length - 1}
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
-      {showForm && (
-        <>
-          <div className="backdrop"></div>
-          <div className="quiz-form">
-            <h3 className="quiz-form__title">Create Quiz</h3>
-            <input
-              className="quiz-form__input"
-              value={quizForm.title}
-              onChange={e => setQuizForm({ ...quizForm, title: e.target.value })}
-              placeholder="Quiz Title"
-            />
-            {quizForm.questions.map((q, i) => (
-              <div key={i} className="quiz-form__question">
-                <h4 className="quiz-form__question-title">Question {i + 1}</h4>
-                <div
-                  className="quiz-form__dropzone"
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    handleImageDrop(i, e.dataTransfer.files);
-                  }}
-                  onDragOver={e => e.preventDefault()}
-                  onClick={() => document.getElementById(`file-input-${i}`).click()}
-                >
-                  <p className="quiz-form__dropzone-text">Drag & Drop an Image or Click to Browse</p>
-                  <input
-                    id={`file-input-${i}`}
-                    type="file"
-                    accept="image/*"
-                    style={{ display: 'none' }}
-                    onChange={(e) => handleImageDrop(i, e.target.files)}
-                  />
-                  {q.image && <img src={URL.createObjectURL(q.image)} alt="Preview" className="quiz-form__dropzone-image" />}
+                <div className="actions">
+                  <button className="ppt-btn ppt-primary" onClick={() => handleStartQuiz(q._id)}>
+                    <FaPlay /> Start
+                  </button>
+                  <button className="ppt-btn" onClick={() => handleEditQuiz(q)}>
+                    Edit
+                  </button>
+                  <button className="ppt-btn" onClick={() => handleDownload(q._id, q.title)}>
+                    <FaDownload />
+                  </button>
+                  <button className="ppt-btn ppt-danger" onClick={() => handleDeleteQuiz(q._id)}>
+                    <FaTrash />
+                  </button>
                 </div>
-                <input
-                  className="quiz-form__input"
-                  value={q.text}
-                  onChange={e => {
-                    const newQuestions = [...quizForm.questions];
-                    newQuestions[i].text = e.target.value;
-                    setQuizForm({ ...quizForm, questions: newQuestions });
-                  }}
-                  placeholder="Question"
-                />
-                {q.options.map((opt, j) => (
-                  <div key={j} className="quiz-form__option">
-                    <input
-                      type="checkbox"
-                      checked={opt.isCorrect}
-                      onChange={e => {
-                        const newQuestions = [...quizForm.questions];
-                        newQuestions[i].options[j].isCorrect = e.target.checked;
-                        setQuizForm({ ...quizForm, questions: newQuestions });
-                      }}
-                    />
-                    <input
-                      className="quiz-form__option-input"
-                      value={opt.text}
-                      onChange={e => {
-                        const newQuestions = [...quizForm.questions];
-                        newQuestions[i].options[j].text = e.target.value;
-                        setQuizForm({ ...quizForm, questions: newQuestions });
-                      }}
-                      placeholder={`Option ${j + 1}`}
-                    />
-                    <FaTrash className="quiz-form__delete-icon" onClick={() => handleDeleteOption(i, j)} />
-                  </div>
-                ))}
-                <button
-                  className="quiz-form__button"
-                  onClick={() => handleAddOption(i)}
-                >
-                  Add Option
-                </button>
-                <input
-                  className="quiz-form__input"
-                  type="number"
-                  value={q.marks}
-                  onChange={e => {
-                    const newQuestions = [...quizForm.questions];
-                    newQuestions[i].marks = parseInt(e.target.value) || 1;
-                    setQuizForm({ ...quizForm, questions: newQuestions });
-                  }}
-                  placeholder="Marks"
-                />
               </div>
             ))}
-            <div className="quiz-form__footer">
-              <button
-                className="quiz-form__button"
-                onClick={handleAddQuestion}
-              >
-                Add Question
-              </button>
-              <div className="quiz-form__footer-buttons">
-                <button
-                  className="quiz-form__button"
-                  onClick={handleCreateQuiz}
-                >
-                  Submit
-                </button>
-                <button
-                  className="quiz-form__button quiz-form__button--cancel"
-                  onClick={() => setShowForm(false)}
-                >
-                  Cancel
-                </button>
-               
-                {/* <button onClick={() => {
-  if (editingQuizId) {
-    handleEditQuiz(editingQuizId);
-  } else {
-    handleCreateQuiz();
-  }
-}}>
-  {editingQuizId ? 'Update Quiz' : 'Create Quiz'}
-</button> */}
+          </div>
+        )}
 
-              </div>
+        <div className="create-wrap">
+          <button className="ppt-btn ppt-primary" onClick={handleNewDeck}>
+            <FaPlus /> New Slide Deck
+          </button>
+        </div>
+      </div>
+
+      {/* Form Overlay */}
+      {showForm && (
+        <div className="ppt-overlay">
+          <div className="ppt-slide-template">
+            {!titleStep && (
+              <>
+                <div className="ppt-edge-nav left">
+                  <button className="ppt-nav-btn" onClick={() => setEditIndex(p => Math.max(0, p - 1))} disabled={editIndex === 0}>
+                    <FaChevronLeft />
+                  </button>
+                </div>
+                <div className="ppt-edge-nav right">
+                  <button className="ppt-nav-btn" onClick={() => setEditIndex(p => Math.min(quizForm.questions.length - 1, p + 1))} disabled={editIndex === quizForm.questions.length - 1}>
+                    <FaChevronRight />
+                  </button>
+                </div>
+              </>
+            )}
+
+            <div className="ppt-header">
+              <input
+                type="text"
+                value={quizForm.title}
+                onChange={e => setQuizForm({ ...quizForm, title: e.target.value })}
+                placeholder="Quiz Title"
+                style={{ fontSize: 24, fontWeight: 800, border: "none", outline: "none", flex: 1 }}
+              />
+              {!titleStep && <span>{editIndex + 1} / {quizForm.questions.length}</span>}
+            </div>
+
+            <div className="ppt-body">
+              {titleStep ? (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", textAlign: "center" }}>
+                  <h2 style={{ fontSize: 32, fontWeight: 800, marginBottom: 20 }}>Enter Quiz Title</h2>
+                  <input
+                    type="text"
+                    value={quizForm.title}
+                    onChange={e => setQuizForm({ ...quizForm, title: e.target.value })}
+                    placeholder="Type the title here..."
+                    style={{ fontSize: 24, padding: "10px 20px", borderRadius: 10, border: "1px solid #ddd", width: "80%", maxWidth: 600, textAlign: "center" }}
+                  />
+                  <button
+                    className="ppt-btn ppt-primary"
+                    onClick={() => {
+                      if (quizForm.title.trim()) setTitleStep(false);
+                      else toast.error("Title is required");
+                    }}
+                    style={{ marginTop: 30, padding: "12px 24px", fontSize: 18 }}
+                  >
+                    Next
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="ppt-img-box">
+                    {quizForm.questions[editIndex].image ? (
+                      <div style={{ position: "relative" }}>
+                        <img
+                          src={
+                            quizForm.questions[editIndex].image instanceof File
+                              ? URL.createObjectURL(quizForm.questions[editIndex].image)
+                              : `http://localhost:8000/uploads/${quizForm.questions[editIndex].image}`
+                          }
+                          alt="Question"
+                          className="ppt-img"
+                        />
+                        <button className="remove-image-btn" onClick={() => removeQuestionImage(editIndex)}>
+                          Remove Image
+                        </button>
+                      </div>
+                    ) : (
+                      <label
+                        className="dropzone"
+                        onDrop={e => {
+                          e.preventDefault();
+                          const file = e.dataTransfer.files[0];
+                          if (file) {
+                            const qs = [...quizForm.questions];
+                            qs[editIndex].image = file;
+                            setQuizForm({ ...quizForm, questions: qs });
+                          }
+                        }}
+                        onDragOver={e => e.preventDefault()}
+                      >
+                        <div className="ppt-img-drop">
+                          <FaRegImage size={32} />
+                          <span>Drop image here or click to upload</span>
+                        </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          hidden
+                          onChange={e => {
+                            const file = e.target.files[0];
+                            if (file) {
+                              const qs = [...quizForm.questions];
+                              qs[editIndex].image = file;
+                              setQuizForm({ ...quizForm, questions: qs });
+                            }
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+
+                  <div className="form-block">
+                    <div className="form-row">
+                      <div className="form-qindex">Q{editIndex + 1}</div>
+                      <input
+                        type="text"
+                        value={quizForm.questions[editIndex].text}
+                        onChange={e => {
+                          const qs = [...quizForm.questions];
+                          qs[editIndex].text = e.target.value;
+                          setQuizForm({ ...quizForm, questions: qs });
+                        }}
+                        placeholder="Question Text"
+                      />
+                      <input
+                        type="number"
+                        value={quizForm.questions[editIndex].marks}
+                        onChange={e => {
+                          const qs = [...quizForm.questions];
+                          qs[editIndex].marks = parseInt(e.target.value) || 1;
+                          setQuizForm({ ...quizForm, questions: qs });
+                        }}
+                        min={1}
+                        placeholder="Marks"
+                      />
+                    </div>
+
+                    {quizForm.questions[editIndex].options.map((opt, oi) => (
+                      <div className="option-edit" key={oi}>
+                        <div className="checkbox">
+                          <input
+                            type="checkbox"
+                            checked={opt.isCorrect}
+                            onChange={e => {
+                              const qs = [...quizForm.questions];
+                              qs[editIndex].options[oi].isCorrect = e.target.checked;
+                              setQuizForm({ ...quizForm, questions: qs });
+                            }}
+                          />
+                          <span>Correct</span>
+                        </div>
+                        <input
+                          type="text"
+                          value={opt.text}
+                          onChange={e => {
+                            const qs = [...quizForm.questions];
+                            qs[editIndex].options[oi].text = e.target.value;
+                            setQuizForm({ ...quizForm, questions: qs });
+                          }}
+                          placeholder={`Option ${String.fromCharCode(65 + oi)}`}
+                        />
+                        <button
+                          onClick={() => {
+                            const qs = [...quizForm.questions];
+                            qs[editIndex].options.splice(oi, 1);
+                            setQuizForm({ ...quizForm, questions: qs });
+                          }}
+                        >
+                          <FaTrash />
+                        </button>
+                      </div>
+                    ))}
+
+                    <button
+                      onClick={() => {
+                        const qs = [...quizForm.questions];
+                        qs[editIndex].options.push(DEFAULT_OPT());
+                        setQuizForm({ ...quizForm, questions: qs });
+                      }}
+                    >
+                      Add Option
+                    </button>
+
+                    <button className="delete-question-btn" onClick={() => deleteQuestion(editIndex)} disabled={quizForm.questions.length === 1}>
+                      Delete Question
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="ppt-controls">
+              <button
+                className="ppt-btn"
+                onClick={() => {
+                  setShowForm(false);
+                  setTitleStep(false);
+                }}
+              >
+                Cancel
+              </button>
+              {!titleStep && (
+                <button
+                  className="ppt-btn"
+                  onClick={() => {
+                    setQuizForm({ ...quizForm, questions: [...quizForm.questions, DEFAULT_Q()] });
+                    setEditIndex(quizForm.questions.length);
+                  }}
+                >
+                  <FaPlus /> Add Question
+                </button>
+              )}
+              <button className="ppt-btn ppt-primary" onClick={handleSaveQuiz}>
+                Save Quiz
+              </button>
             </div>
           </div>
-        </>
+        </div>
+      )}
+
+      {showPresenter && controlQuizId && (
+        <div className="ppt-overlay">
+          <div className="ppt-slide-template">
+            <div className="ppt-edge-nav left">
+              <button className="ppt-nav-btn" onClick={prevSlide} disabled={currentIndex === 0}>
+                <FaChevronLeft />
+              </button>
+            </div>
+            <div className="ppt-edge-nav right">
+              <button
+                className="ppt-nav-btn"
+                onClick={nextSlide}
+                disabled={currentIndex === (quizzes.find(q => q._id === controlQuizId)?.questions.length - 1)}
+              >
+                <FaChevronRight />
+              </button>
+            </div>
+
+            <div className="ppt-header">
+              <div className="ppt-qtext">
+                {quizzes.find(q => q._id === controlQuizId)?.questions[currentIndex]?.text || ""}
+              </div>
+              <div className="ppt-marks">
+                {quizzes.find(q => q._id === controlQuizId)?.questions[currentIndex]?.marks || 1} pts
+              </div>
+            </div>
+
+            <div className="ppt-body">
+              <div className="ppt-img-box">
+                {quizzes.find(q => q._id === controlQuizId)?.questions[currentIndex]?.image ? (
+                  <img
+                    src={`http://localhost:8000/uploads/${quizzes.find(q => q._id === controlQuizId)?.questions[currentIndex]?.image}`}
+                    alt="Question"
+                    className="ppt-img"
+                  />
+                ) : (
+                  <div className="ppt-img-drop">
+                    <FaRegImage size={32} />
+                    <span>No Image</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="poll-panel">
+                <div className="poll-option-list">
+                  {pollData(currentIndex).map(pd => (
+                    <div className={`poll-opt-row ${pd.isCorrect && showResults ? "poll-correct-row" : ""}`} key={pd.idx}>
+                      <span className="poll-opt-label">{String.fromCharCode(65 + pd.idx)}</span>
+                      <span className="poll-opt-text">{pd.option}</span>
+                      {showResults && <span className="poll-votes">{pd.votes}</span>}
+                      {pd.isCorrect && showResults && <span className="is-correct">Correct</span>}
+                    </div>
+                  ))}
+                </div>
+                {showResults && (
+                  <div className="poll-bars-row">
+                    {pollData(currentIndex).map(pd => (
+                      <div className="poll-bar-box" key={pd.idx}>
+                        <span className="poll-bar-votes">{pd.votes}</span>
+                        <div
+                          className={`poll-bar bar${pd.idx + 1}`}
+                          style={{
+                            height: `${(pd.votes / Math.max(1, pollData(currentIndex).reduce((s, p) => s + p.votes, 0))) * 100}%`
+                          }}
+                        ></div>
+                        <span className="poll-bar-label">{String.fromCharCode(65 + pd.idx)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="ppt-controls">
+              <div className="group">
+                <input
+                  type="number"
+                  value={timerValue}
+                  onChange={e => setTimerValue(parseInt(e.target.value) || 0)}
+                  placeholder="Timer (s)"
+                  style={{ width: 80, padding: 8, borderRadius: 10, border: "1px solid #ddd" }}
+                />
+                <button className="ppt-btn" onClick={startTimer} disabled>
+                  Start Timer
+                </button>
+                {timeLeft > 0 && <span>Time Left: {timeLeft}s</span>}
+              </div>
+              <button className="ppt-btn" onClick={toggleResults}>
+                {showResults ? "Hide" : "Show"} Results
+              </button>
+              <button className="ppt-btn ppt-danger" onClick={() => handleEndQuiz(controlQuizId)}>
+                End Quiz
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

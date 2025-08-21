@@ -1,0 +1,211 @@
+/* Section title under your existing SecondNav */
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 6px 0 12px;
+}
+.section-title {
+  font-weight: 800;
+  letter-spacing: .2px;
+}
+
+/* Quiz list */
+.quiz-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+.quiz-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px;
+}
+.quiz-meta {
+  color: var(--muted);
+  display: flex;
+  gap: 14px;
+  font-size: 14px;
+  flex-wrap: wrap;
+}
+.tag {
+  border: 1px solid var(--border);
+  background: #fff;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-weight: 600;
+  font-size: 12px;
+}
+.tag--live {
+  border-color: #d1fae5;
+  background: #ecfdf5;
+  color: #065f46;
+}
+.tag--ended {
+  border-color: #fee2e2;
+  background: #fef2f2;
+  color: #991b1b;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Create button placed UNDER the list */
+.create-wrap {
+  margin-top: 14px;
+}
+
+/* Presenter slide styles (intact) */
+.slide {
+  display: flex;
+  flex-direction: column;
+}
+.slide__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 22px;
+  border-bottom: 1px solid var(--border);
+}
+.slide__title {
+  font-size: 28px;
+  font-weight: 800;
+}
+.slide__body {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 18px;
+  padding: 18px 22px;
+}
+@media (max-width:980px) {
+  .slide__body { grid-template-columns: 1fr; }
+}
+.slide__media {
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  min-height: 240px;
+  overflow: hidden;
+  background: #fafafa;
+}
+.slide__img {
+  max-width: 100%;
+  max-height: 60vh;
+  object-fit: contain;
+}
+
+/* Colorful poll bars (intact) */
+.slide__poll {
+  display: flex;
+  gap: 22px;
+  align-items: flex-end;
+  justify-content: center;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  min-height: 240px;
+  padding: 12px;
+  background: #fafafa;
+}
+.poll { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 86px; }
+.bar-wrap {
+  width: 28px; height: 160px; border-radius: 10px;
+  background: #f9f9f9; display: flex; align-items: flex-end; justify-content: center;
+  box-shadow: inset 0 0 0 1px #e5e7eb;
+}
+.bar { width: 100%; border-radius: 10px; background: linear-gradient(180deg, #22d3ee, #3b82f6); transition: height .35s; }
+.bar--2 { background: linear-gradient(180deg,#f472b6,#ec4899); }
+.bar--3 { background: linear-gradient(180deg,#f59e0b,#ef4444); }
+.bar--4 { background: linear-gradient(180deg,#34d399,#10b981); }
+.poll-label { font-size: 12px; text-align: center; }
+.poll-votes { font-weight: 800; }
+.poll-correct { color: var(--success); font-weight: 800; }
+
+/* Footer controls */
+.slide__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 22px;
+  border-top: 1px solid var(--border);
+}
+.group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* === FORM / COMPOSER === */
+.form-block {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  background: #fff;
+  max-width: 640px; /* fixed form "slide" width */
+  margin: 0 auto; /* center in modal */
+  position: relative;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 64px 1fr 100px; /* fixed sized columns */
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.form-qindex {
+  width: 64px; height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #fff;
+  font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.delete-question-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: var(--danger);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.delete-question-btn:hover {
+  background: #c53030;
+}
+
+/* Image dropzone */
+.dropzone {
+  border: 1.5px dashed var(--border);
+  border-radius: 12px;
+  min-height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: #fafafa;
+  margin-bottom: 10px;
+}
+.dropzone__preview {
+  max-width: 100%;
+  max-height: 220px;
+  border-radius: 10px;
+}
+
+/* Options list */
+.option-edit {
+  display: grid;
+  grid-template-columns: 90px 1fr 40px;
+  gap: 8px;
+  align-items: center;
+}
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
