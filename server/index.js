@@ -10,11 +10,20 @@ import StudentRoutes from "./routes/students.js";
 import path from "path";
 import QuizRoutes from "./routes/Quiz.js";
 import FacultyClassRoutes from "./routes/faculty.js";
+import leaveRoute from "./routes/leaveRoutes.js";
+import ApprovalRoutes from './routes/approvalRoutes.js';
+import mentorStudentRoutes from './routes/mentorstudentRoutes.js';
+import achievementsRoutes from "./routes/achievements.js";
+import marksRouter from './routes/markroutes.js';
+import { Server } from "socket.io";
+import http from "http";
 
 dotenv.config();
-// console.log("MONGO_URI from .env:", process.env.MONGO_URI); // Debug
 
-const app = express();
+const app = express(); // ✅ create app first
+const server = http.createServer(app); // ✅ now pass app
+const io = new Server(server, { cors: { origin: "*" } });
+
 const PORT = process.env.PORT || 5000;
 
 DBcon();
@@ -57,6 +66,13 @@ app.get("/", (req, res) => {
   res.send("Hello from classroom backend");
 });
 
+// ✅ Attach io to requests
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
+
+// Routes
 app.use("/auth", AuthRoutes);
 app.use("/class", ClassRoutes);
 app.use("/quizes", QuizRoutes);
@@ -64,7 +80,13 @@ app.use("/otp", OTPRoutes);
 app.use("/attendance", AttendanceRoutes);
 app.use("/students", StudentRoutes);
 app.use("/facultyclass", FacultyClassRoutes);
+app.use('/api/leave', leaveRoute);
+app.use('/api/approval', ApprovalRoutes);
+app.use('/api/mentorstudent', mentorStudentRoutes);
+app.use("/api/achievements", achievementsRoutes);
+app.use("/api/marks", marksRouter);
 
-app.listen(PORT, () => {
+// ✅ Start the server with socket.io
+server.listen(PORT, () => {
   console.log(`App is Running on the Port ${PORT}`);
 });

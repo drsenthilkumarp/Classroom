@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Upload, Plus, Trash2, X } from 'lucide-react'; // Import X icon for removing files
 
 const styles = `
@@ -961,6 +961,37 @@ const Achievements = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
 
+  // Fetch data on mount
+  useEffect(() => {
+  const userEmail = localStorage.getItem('email'); // Use email as userEmail
+  if (!userEmail) return;
+  fetch(`http://localhost:8000/api/achievements?userEmail=${encodeURIComponent(userEmail)}`)
+    .then(res => res.json())
+    .then(data => {
+      if (data && data.achievement) {
+        setFormData(prev => deepMerge(prev, data.achievement));
+      }
+    });
+}, []);
+
+  // Helper function for deep merge
+  function deepMerge(target, source) {
+    for (const key in source) {
+      if (
+        source[key] &&
+        typeof source[key] === 'object' &&
+        !Array.isArray(source[key])
+      ) {
+        target[key] = deepMerge({ ...(target[key] || {}) }, source[key]);
+      } else if (Array.isArray(source[key])) {
+        target[key] = source[key];
+      } else {
+        target[key] = source[key];
+      }
+    }
+    return { ...target };
+  }
+
   const toggleSection = (section) => {
     setOpenSection(openSection === section ? null : section);
   };
@@ -1061,9 +1092,32 @@ const Achievements = () => {
     });
   };
 
-  const removeAcademicDetail = (index) => {
-    removeEntry('academicDetails', index);
-  };
+  // Generic async remove function for array sections
+const removeSectionEntry = async (section, index) => {
+  const userEmail = localStorage.getItem('email');
+  if (!userEmail) return;
+  const res = await fetch(
+    `http://localhost:8000/api/achievements/${encodeURIComponent(userEmail)}/${section}/${index}`,
+    { method: 'DELETE' }
+  );
+  if (res.ok) {
+    removeEntry(section, index);
+  } else {
+    alert(`Failed to delete entry from ${section}`);
+  }
+};
+
+  const removeAcademicDetail = (index) => removeSectionEntry('academicDetails', index);
+  const removePaperPresentation = (index) => removeSectionEntry('paperPresentations', index);
+  const removePublication = (index) => removeSectionEntry('publications', index);
+  const removePatent = (index) => removeSectionEntry('patents', index);
+  const removeEntrepreneurship = (index) => removeSectionEntry('entrepreneurship', index);
+  const removePlacement = (index) => removeSectionEntry('placement', index);
+  const removeProject = (index) => removeSectionEntry('projectDetails', index);
+  const removeCompetition = (index) => removeSectionEntry('competitions', index);
+  const removeInternship = (index) => removeSectionEntry('internship', index);
+  const removeOnlineCourse = (index) => removeSectionEntry('onlineCourse', index);
+  const removeProductDevelopment = (index) => removeSectionEntry('productDevelopment', index);
 
   const addPaperPresentation = () => {
     addEntry('paperPresentations', {
@@ -1077,10 +1131,6 @@ const Achievements = () => {
     });
   };
 
-  const removePaperPresentation = (index) => {
-    removeEntry('paperPresentations', index);
-  };
-
   const addPublication = () => {
     addEntry('publications', {
       title: '',
@@ -1092,10 +1142,6 @@ const Achievements = () => {
     });
   };
 
-  const removePublication = (index) => {
-    removeEntry('publications', index);
-  };
-
   const addPatent = () => {
     addEntry('patents', {
       title: '',
@@ -1103,10 +1149,6 @@ const Achievements = () => {
       endDate: '',
       proof: null,
     });
-  };
-
-  const removePatent = (index) => {
-    removeEntry('patents', index);
   };
 
   const addEntrepreneurship = () => {
@@ -1119,10 +1161,6 @@ const Achievements = () => {
     });
   };
 
-  const removeEntrepreneurship = (index) => {
-    removeEntry('entrepreneurship', index);
-  };
-
   const addPlacement = () => {
     addEntry('placement', {
       companyName: '',
@@ -1130,10 +1168,6 @@ const Achievements = () => {
       proof: null,
       dateOfPlacement: '',
     });
-  };
-
-  const removePlacement = (index) => {
-    removeEntry('placement', index);
   };
 
   const addProject = () => {
@@ -1145,10 +1179,6 @@ const Achievements = () => {
       startDate: '',
       endDate: '',
     });
-  };
-
-  const removeProject = (index) => {
-    removeEntry('projectDetails', index);
   };
 
   const addCompetition = () => {
@@ -1163,10 +1193,6 @@ const Achievements = () => {
     });
   };
 
-  const removeCompetition = (index) => {
-    removeEntry('competitions', index);
-  };
-
   const addInternship = () => {
     addEntry('internship', {
       companyName: '',
@@ -1176,10 +1202,6 @@ const Achievements = () => {
       certificate: null,
       description: '',
     });
-  };
-
-  const removeInternship = (index) => {
-    removeEntry('internship', index);
   };
 
   const addOnlineCourse = () => {
@@ -1192,10 +1214,6 @@ const Achievements = () => {
     });
   };
 
-  const removeOnlineCourse = (index) => {
-    removeEntry('onlineCourse', index);
-  };
-
   const addProductDevelopment = () => {
     addEntry('productDevelopment', {
       productName: '',
@@ -1206,15 +1224,50 @@ const Achievements = () => {
     });
   };
 
-  const removeProductDevelopment = (index) => {
-    removeEntry('productDevelopment', index);
-  };
+  function cleanFormData(data) {
+    const cleaned = {};
+    for (const key in data) {
+      if (Array.isArray(data[key])) {
+        // Remove empty objects from arrays
+        const arr = data[key].filter(item =>
+          Object.values(item).some(val => val !== '' && val !== null)
+        );
+        if (arr.length > 0) cleaned[key] = arr;
+      } else if (typeof data[key] === 'object' && data[key] !== null) {
+        // Remove empty fields from objects
+        const obj = {};
+        for (const k in data[key]) {
+          if (data[key][k] !== '' && data[key][k] !== null) obj[k] = data[key][k];
+        }
+        if (Object.keys(obj).length > 0) cleaned[key] = obj;
+      } else if (data[key] !== '' && data[key] !== null) {
+        cleaned[key] = data[key];
+      }
+    }
+    return cleaned;
+  }
 
-  const handleSubmit = () => {
-    console.log('Form Data Submitted:', formData);
+const handleSubmit = async () => {
+  const userEmail = localStorage.getItem('email');
+  if (!userEmail) {
+    alert('User not logged in');
+    return;
+  }
+  // Clean the form data before sending
+  const cleanedData = cleanFormData(formData);
+  const data = { userEmail, ...cleanedData };
+  const response = await fetch('http://localhost:8000/api/achievements', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (response.ok) {
     setShowSuccess(true);
     setTimeout(() => setShowSuccess(false), 2000);
-  };
+  } else {
+    alert('Failed to submit achievements');
+  }
+};
 
   const handlePreview = () => {
     setShowPreview(true);
@@ -1240,6 +1293,18 @@ const Achievements = () => {
 
   const skills = formData.skills.skills ? formData.skills.skills.split(',').map(skill => skill.trim()) : [];
   const languages = formData.languages.language ? formData.languages.language.split(',').map(lang => lang.trim()) : [];
+
+  // When user edits and clicks "Save"
+const handleSave = async () => {
+  const userEmail = localStorage.getItem('email');
+  // Collect all updated fields in 'data'
+  const data = { userEmail, ...allAchievementFields }; // allAchievementFields = your state
+  await fetch('http://localhost:8000/api/achievements', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+};
 
   return (
     <>
@@ -2320,7 +2385,7 @@ const Achievements = () => {
                       <span className="status-label">Status: Pending</span>
                     </div>
                     {internship.certificate && (
-                      <div className="uploaded-file">
+                                           <div className="uploaded-file">
                         <span>{internship.certificate.name}</span>
                         <button
                           className="remove-file-button"

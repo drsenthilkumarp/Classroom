@@ -20,7 +20,6 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [splineLoaded, setSplineLoaded] = useState(false);
 
-  // Validate email domain on change
   const validateEmail = (email) => {
     const domain = email.substring(email.lastIndexOf('@') + 1).toLowerCase();
     return domain === 'bitsathy.ac.in';
@@ -53,15 +52,17 @@ const Login = () => {
         withCredentials: true
       });
       const data = response.data;
-      
+
       if (data.success) {
         localStorage.setItem("token", data.token);
+        localStorage.setItem("email", data.user.email); // ✅ Save email
+
         dispatch(SetUser({
           email: data.user.email,
           role: data.user.role
         }));
         toast.success(data.message);
-        navigate(data.redirectUrl || (data.user.role === 'admin' ? '/home' : '/home')); // Use redirectUrl if provided
+        navigate(data.redirectUrl || '/home');
       } else {
         toast.error(data.message);
         setError(data.message);
@@ -83,15 +84,17 @@ const Login = () => {
       const res = await post("/auth/google", {
         token: response.credential
       });
-      
+
       if (res.data.success) {
         localStorage.setItem("token", res.data.token);
+        localStorage.setItem("email", res.data.user?.email); // ✅ Save email
+
         dispatch(SetUser({
           email: res.data.user?.email,
           role: res.data.user?.role
         }));
         toast.success(res.data.message);
-        navigate(res.data.redirectUrl); // Use redirectUrl from backend
+        navigate(res.data.redirectUrl);
       } else {
         toast.error(res.data.message || "Google Login failed");
         setError(res.data.message || "Google Login failed");
@@ -126,22 +129,20 @@ const Login = () => {
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <div className="min-h-screen flex items-center justify-center bg-[#d5d4e6] px-6 py-12 relative overflow-hidden">
-        {/* Animated Background Elements */}
+        {/* Background animations */}
         <motion.div 
           className="absolute top-5 left-5 w-16 h-16 rounded-full bg-gradient-to-r from-purple-400 to-blue-500 opacity-75"
           animate={{ y: [0, -10, 10, 0] }}
           transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
         />
-        
         <motion.div 
           className="absolute bottom-[-150px] right-[-100px] w-[350px] h-[350px] rounded-full bg-gradient-to-r from-blue-500 to-purple-600 opacity-50"
           animate={{ scale: [1, 1.1, 1], rotate: [0, 10, -10, 0] }}
           transition={{ repeat: Infinity, duration: 6, ease: "easeInOut" }}
         />
 
-        {/* Main Login Box */}
         <div className="flex w-full max-w-4xl bg-[#d5d4e6] bg-opacity-90 backdrop-blur-xl shadow-lg rounded-xl overflow-hidden border border-gray-300">
-          {/* Left Side - Form */}
+          {/* Form section */}
           <motion.div
             initial={{ opacity: 0, rotateY: 90 }}
             animate={{ opacity: 1, rotateY: 0 }}
@@ -155,7 +156,6 @@ const Login = () => {
             {error && (
               <div className="text-red-500 text-center text-sm mb-4">{error}</div>
             )}
-
             {isLoading && (
               <div className="text-center mb-4">
                 <div className="inline-block w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
@@ -163,7 +163,6 @@ const Login = () => {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Email Input */}
               <div>
                 <input
                   type="email"
@@ -177,7 +176,6 @@ const Login = () => {
                 />
               </div>
 
-              {/* Password Input with Toggle */}
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -198,7 +196,6 @@ const Login = () => {
                 </button>
               </div>
 
-              {/* Forgot Password Link */}
               <div className="flex items-center justify-between">
                 <div></div>
                 <Link to="/register" className="text-sm text-blue-600 hover:text-blue-500">
@@ -206,7 +203,6 @@ const Login = () => {
                 </Link>
               </div>
 
-              {/* Submit Button */}
               <motion.button
                 whileHover={{ scale: 1.05, rotate: 1 }}
                 whileTap={{ scale: 0.95, rotate: -1 }}
@@ -218,23 +214,20 @@ const Login = () => {
               </motion.button>
             </form>
 
-            {/* OR Separator */}
             <div className="my-4 text-center text-gray-600">
               <span className="text-sm">Or continue with</span>
             </div>
 
-            {/* Google Login */}
             <div className="flex justify-center">
               <GoogleLogin
                 onSuccess={handleGoogleSuccess}
                 onError={handleGoogleFailure}
                 disabled={isLoading}
-                // Removed flow="auth-code" and redirect_uri since we're using ID token flow
               />
             </div>
           </motion.div>
 
-          {/* Right Side - Spline 3D Animation */}
+          {/* Spline 3D Animation */}
           <div className="hidden md:block md:w-1/2 relative overflow-hidden" style={{ backgroundColor: "#d5d4e6" }}>
             <div className="absolute bottom-0 left-0 right-0 h-15 z-10" style={{ backgroundColor: "#d5d4e6" }}></div>
             <div className="absolute inset-0">

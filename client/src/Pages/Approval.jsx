@@ -1,11 +1,8 @@
-import React from 'react';
-import { useParams } from 'react-router-dom';
-import MentorNav from '../Components/MentorNav'; // Adjust path based on your project structure
+import React, { useState, useEffect } from 'react';
+import MentorNav from '../Components/MentorNav';
 
 const styles = `
-  /* Page Background */
   .page-container {
-    background-color: #d3d8e0;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
@@ -13,59 +10,140 @@ const styles = `
     padding: 20px;
     position: relative;
   }
-
-  /* Card Container for all content */
+.page-container {
+  margin-top: 60px;
+}
   .card-container {
     background-color: #fff;
     border-radius: 1rem;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    width: 100%;
+    padding: 20px;
+    width: 90%;
     max-width: 700px;
-    padding: 0 2rem 2rem 2rem;
-    margin-top: 4.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
   }
 
-  /* Style for MentorNav to merge with the top of the card */
-  .second-nav {
-    background-color: #fff;
-    border-top-left-radius: 1rem;
-    border-top-right-radius: 1rem;
-    padding: 0rem 0;
-    margin: 0 -2rem;
+  .leave-table {
+    width: 80%;           /* reduced width */
+    max-width: 700px;     /* max width */
+    margin: 0 auto;       /* center horizontally */
+    border-collapse: collapse;
+    margin-top: 20px;
   }
 
-  /* Headings */
-  .class-name {
-    font-size: 2.5rem;
-    font-weight: 800;
-    color: #6b48ff;
-    margin-bottom: 0.2rem;
+  .leave-table th,
+  .leave-table td {
+    border: 1px solid #ddd;
+    padding: 8px;
     text-align: center;
   }
 
-  /* Responsive adjustments */
-  @media (max-width: 768px) {
-    .card-container {
-      padding: 0 1rem 1rem 1rem;
-      margin-top: 0.5rem;
-    }
+  .leave-table th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+  }
 
-    .second-nav {
-      margin: 0 -1rem;
-      padding: 0.75rem 0;
-    }
+  .leave-table td {
+    vertical-align: middle;
+  }
 
-    .class-name {
-      font-size: 1.8rem;
-    }
+  .accept-btn {
+    background-color: #4CAF50;
+    color: white;
+    padding: 5px 12px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-right: 8px;
+    font-weight: bold;
+  }
+
+  .accept-btn:disabled {
+    background-color: #a5d6a7;
+    cursor: not-allowed;
+  }
+
+  .decline-btn {
+    background-color: #f44336;
+    color: white;
+    padding: 5px 12px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+  }
+
+  .decline-btn:disabled {
+    background-color: #ef9a9a;
+    cursor: not-allowed;
+  }
+
+  .action-buttons {
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+  }
+
+  .second-nav {
+    margin-bottom: 20px;
+  }
+
+  .leave-details {
+    text-align: left;
   }
 `;
 
 const Approval = () => {
-  const { classId } = useParams();
+  const [leaveData, setLeaveData] = useState([]);
+
+  // Custom sorting: Pending > Approved > Declined
+  const sortLeaves = (leaves) => {
+    const statusOrder = { Pending: 0, Approved: 1, Declined: 2 };
+    return leaves.sort((a, b) => {
+      const statusA = a.status || 'Pending';
+      const statusB = b.status || 'Pending';
+      return (statusOrder[statusA] ?? 3) - (statusOrder[statusB] ?? 3);
+    });
+  };
+
+  const fetchLeaveData = async () => {
+    try {
+      const response = await fetch(`http://localhost:8000/api/approval`);
+      if (!response.ok) throw new Error('Failed to fetch leave data');
+      const data = await response.json();
+      const sortedData = sortLeaves(data);
+      setLeaveData(sortedData);
+    } catch (error) {
+      console.error('Error fetching leave data:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchLeaveData();
+  }, []);
+
+  const handleStatusUpdate = async (id, status) => {
+    try {
+      const response = await fetch(`http://localhost:8000/api/approval/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status }),
+      });
+
+      if (!response.ok) throw new Error('Failed to update leave status');
+      const updatedLeave = await response.json();
+
+      setLeaveData((prev) => {
+        const updated = prev.map((leave) =>
+          leave._id === updatedLeave._id ? updatedLeave : leave
+        );
+        return sortLeaves(updated);
+      });
+    } catch (error) {
+      console.error('Error updating leave status:', error);
+    }
+  };
 
   return (
     <>
@@ -73,9 +151,66 @@ const Approval = () => {
       <div className="page-container">
         <div className="card-container">
           <div className="second-nav">
-            <MentorNav classId={classId} />
+            <MentorNav />
           </div>
-          <h1 className="class-name">Approval</h1>
+
+          <table className="leave-table">
+            <thead>
+              <tr>
+                <th>Leave Details</th> {/* Combined Email, Type, From, To, Purpose */}
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {leaveData.length > 0 ? (
+                leaveData.map((leave, index) => (
+                  <tr key={index}>
+                    <td className="leave-details">
+                      <div><strong>Email:</strong> {leave.email}</div>
+                      <div><strong>Type:</strong> {leave.leaveType}</div>
+                      <div><strong>From:</strong> {new Date(leave.fromDateTime).toLocaleString()}</div>
+                      <div><strong>To:</strong> {new Date(leave.toDateTime).toLocaleString()}</div>
+                      <div><strong>Purpose:</strong> {leave.purpose}</div>
+                    </td>
+                    <td>{leave.status || 'Pending'}</td>
+                    <td>
+                      <div className="action-buttons">
+                        <button
+                          className="accept-btn"
+                          onClick={() => {
+                            if (window.confirm("Are you sure you want to accept this leave?")) {
+                              handleStatusUpdate(leave._id, 'Approved');
+                            }
+                          }}
+                          disabled={leave.status === 'Approved'}
+                        >
+                          Accept
+                        </button>
+                        <button
+                          className="decline-btn"
+                          onClick={() => {
+                            if (window.confirm("Are you sure you want to decline this leave?")) {
+                              handleStatusUpdate(leave._id, 'Declined');
+                            }
+                          }}
+                          disabled={leave.status === 'Declined'}
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="3" style={{ textAlign: 'center' }}>
+                    No leave applications found.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </>

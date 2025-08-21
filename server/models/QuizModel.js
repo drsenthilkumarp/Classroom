@@ -5,9 +5,9 @@ const quizSchema = new mongoose.Schema({
   classId: { type: mongoose.Schema.Types.ObjectId, ref: 'Class', required: true },
   questions: [{
     image: { type: String },
-    text: { type: String, required: true },
+    text: { type: String, required: false },
     options: [{ text: { type: String, required: true }, isCorrect: { type: Boolean, required: true } }],
-    marks: { type: Number, required: true },
+    marks: { type: Number, required: false },
     timeLimit: { type: Number, default: 0 }
   }],
   totalMarks: { type: Number },

@@ -5,12 +5,12 @@ import SecondNavUs from '../Components/SecondNavUs';
 import { classGet, classPost, getUser } from '../services/Endpoint';
 import toast from 'react-hot-toast';
 
-// const socket = io('http://localhost:8000', {
-//   transports: ['websocket', 'polling'],
-//   reconnection: true,
-//   reconnectionAttempts: 5,
-//   reconnectionDelay: 1000,
-// });
+const socket = io('http://localhost:8000', {
+  transports: ['websocket', 'polling'],
+  reconnection: true,
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000,
+});
 
 const styles = `
   /* Page Background */
@@ -493,7 +493,7 @@ const QuizUser = () => {
             </div>
           </div>
         </div>
-      )}
+      )}``
     </div>
   );
 };

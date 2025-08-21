@@ -1,8 +1,11 @@
+import axios from 'axios';
+
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Trash2 } from 'lucide-react';
 import MentorNav from '../Components/MentorNav'; // Adjust path based on your project structure
+
 
 const styles = `
   /* Page Background */
@@ -276,7 +279,6 @@ const styles = `
     }
   }
 `;
-
 const AddStudentMentor = () => {
   const { classId } = useParams();
   const effectRan = useRef(false);
@@ -289,89 +291,54 @@ const AddStudentMentor = () => {
   // Placeholder class data (simulating backend response)
   const classData = { ClassName: 'Mentor Class' };
 
-  // Load students from localStorage on mount
+
+   // Fetch student data on load
   useEffect(() => {
-    if (effectRan.current === false) {
-      const savedStudents = JSON.parse(localStorage.getItem('students')) || [];
-      setStudents(savedStudents);
-    }
-    return () => {
-      effectRan.current = true;
-    };
+    fetchStudents();
   }, []);
 
-  // Save students to localStorage whenever the list changes
-  useEffect(() => {
-    localStorage.setItem('students', JSON.stringify(students));
-  }, [students]);
-
-  const showNotification = (title, message, type) => {
-    setNotification({ title, message, type });
-    setTimeout(() => setNotification(null), 2000);
+  const fetchStudents = async () => {
+    try {
+      const response = await axios.get('http://localhost:8000/api/mentorstudent');
+      setStudents(response.data); // Expected to include name, email, etc.
+    } catch (error) {
+      console.error('Error fetching students:', error);
+    }
   };
 
-  // Generate random student details
-  const generateRandomDetails = (email) => {
-    const names = [
-      'Arun Kumar', 'Priya Sharma', 'Vikram Singh', 'Sneha Patel', 
-      'Rahul Verma', 'Anjali Nair', 'Karthik Reddy', 'Meera Joshi'
-    ];
-    const randomName = names[Math.floor(Math.random() * names.length)];
-    const randomMobile = `+91${Math.floor(9000000000 + Math.random() * 1000000000)}`;
-    const randomPhoto = `https://randomuser.me/api/portraits/${Math.random() > 0.5 ? 'men' : 'women'}/${Math.floor(Math.random() * 100)}.jpg`;
-
-    return {
-      email,
-      name: randomName,
-      mobile: randomMobile,
-      photo: randomPhoto
-    };
-  };
-
-  const handleSubmit = (e) => {
+ 
+   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email) {
-      showNotification('Error', 'Please enter an email address.', 'error');
-      return;
-    }
-    if (!email.endsWith('@bitsathy.ac.in')) {
-      showNotification('Error', 'Email must be from @bitsathy.ac.in domain.', 'error');
-      return;
-    }
+    if (!email) return;
 
-    // Simulate adding a student
-    setIsLoading(true);
-    setTimeout(() => {
-      // Check for duplicate email
-      if (students.some(student => student.email.toLowerCase() === email.toLowerCase())) {
-        showNotification('Error', 'Student already exists.', 'error');
-      } else {
-        const newStudent = generateRandomDetails(email);
-        setStudents([...students, newStudent]);
-        setEmail('');
-        showNotification('Success', 'Student added successfully', 'success');
-      }
-      setIsLoading(false);
-    }, 1000); // Simulate network delay
+    try {
+      await axios.post('http://localhost:8000/api/mentorstudent', { email });
+      setEmail('');
+      fetchStudents(); // Refresh after adding
+    } catch (error) {
+      console.error('Error adding student:', error);
+    }
   };
 
-  const handleDelete = (studentEmail) => {
-    // Simulate deleting a student
-    setIsLoading(true);
-    setTimeout(() => {
-      setStudents(students.filter(student => student.email !== studentEmail));
-      showNotification('Success', 'Student deleted successfully', 'success');
-      setIsLoading(false);
-    }, 1000); // Simulate network delay
+
+  const handleDelete = async (emailToDelete) => {
+    try {
+      await axios.delete(`http://localhost:8000/api/mentorstudent/${emailToDelete}`);
+      fetchStudents(); // Refresh after delete
+    } catch (error) {
+      console.error('Error deleting student:', error);
+    }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="spinner"></div>
-      </div>
-    );
-  }
+
+
+  // if (isLoading) {
+  //   return (
+  //     <div className="flex justify-center items-center min-h-screen">
+  //       <div className="spinner"></div>
+  //     </div>
+  //   );
+  // }
 
   if (error) {
     return <div className="text-red-500 text-center mt-10">{error}</div>;
@@ -443,3 +410,7 @@ const AddStudentMentor = () => {
 };
 
 export default AddStudentMentor;
+
+
+
+
